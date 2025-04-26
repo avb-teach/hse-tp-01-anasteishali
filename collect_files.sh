@@ -25,7 +25,7 @@ copy_files() {
     local max_depth="$3"
 
     find "$input_dir" -type f | while read -r filepath; do
-        relative_path="${filepath#$input_dir/}"  
+        relative_path="${filepath#$input_dir/}" 
 
       
         if [[ "$relative_path" == *"/"* ]]; then
@@ -34,8 +34,8 @@ copy_files() {
             depth=0
         fi
 
-       
-        if [[ -n "$max_depth" && "$depth" -ge "$max_depth" ]]; then
+      
+        if [[ -n "$max_depth" && "$depth" -gt "$max_depth" ]]; then
             continue
         fi
 
