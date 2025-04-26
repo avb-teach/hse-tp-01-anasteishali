@@ -1,14 +1,5 @@
 #!/bin/bash
 
-if [ "$#" -lt 2 ]; then
-    echo "Usage: $0 [--max_depth N] <input_dir> <output_dir>"
-    exit 1
-fi
-
-MAX_DEPTH=""
-INPUT_DIR=""
-OUTPUT_DIR=""
-
 if [[ "$1" == "--max_depth" ]]; then
     MAX_DEPTH="$2"
     INPUT_DIR="$3"
@@ -16,48 +7,49 @@ if [[ "$1" == "--max_depth" ]]; then
 else
     INPUT_DIR="$1"
     OUTPUT_DIR="$2"
+    MAX_DEPTH=""
 fi
 
-if [ ! -d "$INPUT_DIR" ]; then
-    echo "Input directory does not exist"
+if [ -z "$INPUT_DIR" ] || [ -z "$OUTPUT_DIR" ]; then
+    echo "Usage: $0 [--max_depth N] <input_dir> <output_dir>"
     exit 1
 fi
 
 mkdir -p "$OUTPUT_DIR"
 
-declare -A file_counters
+declare -A seen
 
 copy_files() {
     local input_dir="$1"
     local output_dir="$2"
     local max_depth="$3"
-    local input_dir_depth=$(echo "$input_dir" | grep -o "/" | wc -l)
 
-    if [ -n "$max_depth" ]; then
-        find "$input_dir" -type f | while read filepath; do
-            current_depth=$(echo "$filepath" | grep -o "/" | wc -l)
-            relative_depth=$((current_depth - input_dir_depth))
-            if [ "$relative_depth" -le "$max_depth" ]; then
-                echo "$filepath"
-            fi
-        done
-    else
-        find "$input_dir" -type f
-    fi
+    local base_depth=$(tr -dc '/' <<< "$input_dir" | wc -c)
+
+    find "$input_dir" -type f | while read -r filepath; do
+        local file_depth=$(tr -dc '/' <<< "$filepath" | wc -c)
+        local relative_depth=$((file_depth - base_depth))
+
+        if [[ -n "$max_depth" && "$relative_depth" -gt "$max_depth" ]]; then
+            continue
+        fi
+
+        local filename=$(basename "$filepath")
+        local target="$output_dir/$filename"
+
+        if [[ -e "$target" ]]; then
+            counter=${seen["$filename"]}
+            counter=$((counter + 1))
+            seen["$filename"]=$counter
+            extension="${filename##*.}"
+            name="${filename%.*}"
+            target="$output_dir/${name}_${counter}.$extension"
+        else
+            seen["$filename"]=0
+        fi
+
+        cp "$filepath" "$target"
+    done
 }
 
-while IFS= read -r filepath; do
-    filename=$(basename "$filepath")
-
-    if [[ -e "$OUTPUT_DIR/$filename" ]]; then
-        base="${filename%.*}"
-        ext="${filename##*.}"
-        ((file_counters["$filename"]++))
-        new_filename="${base}_${file_counters["$filename"]}.$ext"
-    else
-        file_counters["$filename"]=0
-        new_filename="$filename"
-    fi
-
-    cp "$filepath" "$OUTPUT_DIR/$new_filename"
-done < <(copy_files "$INPUT_DIR" "$OUTPUT_DIR" "$MAX_DEPTH")
+copy_files "$INPUT_DIR" "$OUTPUT_DIR" "$MAX_DEPTH"
