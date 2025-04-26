@@ -1,63 +1,35 @@
 #!/bin/bash
 
-max_depth=""
-input_dir=""
-output_dir=""
+input_dir="$1"
+output_dir="$2"
+max_depth="$3"
 
-while [[ "$#" -gt 0 ]]; do
-    case $1 in
-        --max_depth)
-            max_depth="$2"
-            shift 2
-            ;;
-        *)
-            if [ -z "$input_dir" ]; then
-                input_dir="$1"
-            elif [ -z "$output_dir" ]; then
-                output_dir="$1"
-            else
-                echo "Неизвестный параметр: $1"
-                exit 1
-            fi
-            shift
-            ;;
-    esac
-done
 
 if [ -z "$input_dir" ] || [ -z "$output_dir" ]; then
-    echo "Использование: $0 [--max_depth N] <входная_директория> <выходная_директория>"
-    exit 1
+  echo "Usage: $0 <input_dir> <output_dir> [max_depth]"
+  exit 1
 fi
 
-if [ ! -d "$input_dir" ]; then
-    echo "Ошибка: входная директория не существует"
-    exit 1
-fi
 
 mkdir -p "$output_dir"
 
-copy_with_suffix() {
-    local src="$1"
-    local dest_dir="$2"
-    local filename=$(basename "$src")
-    local base="${filename%.*}"
-    local ext="${filename##*.}"
-    local counter=1
-    local dest="$dest_dir/$filename"
-    
-    while [ -e "$dest" ]; do
-        dest="$dest_dir/${base}_$counter.$ext"
-        ((counter++))
-    done
-    
-    cp "$src" "$dest"
-}
 
-export -f copy_with_suffix
-
-find_cmd="find \"$input_dir\" -type f"
-if [ -n "$max_depth" ]; then
-    find_cmd="$find_cmd -maxdepth $max_depth"
+if [ -z "$max_depth" ]; then
+  files=$(find "$input_dir" -type f)
+else
+  files=$(find "$input_dir" -maxdepth "$max_depth" -type f)
 fi
 
-eval "$find_cmd" -exec bash -c 'copy_with_suffix "$0" "$1"' {} "$output_dir" \;
+
+for filepath in $files; do
+  filename=$(basename "$filepath")
+  target="$output_dir/$filename"
+
+  counter=1
+  while [ -e "$target" ]; do
+    target="$output_dir/${filename%.*}$counter.${filename##*.}"
+    counter=$((counter + 1))
+  done
+
+  cp "$filepath" "$target"
+done
