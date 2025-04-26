@@ -17,8 +17,9 @@ mkdir -p "$output_dir"
 if [ -z "$max_depth" ]; then
   files=$(find "$input_dir" -type f)
 else
-  files=$(find "$input_dir" -maxdepth "$max_depth" -type f)
+  files=$(find "$input_dir" -type f -maxdepth "$max_depth")
 fi
+
 
 
 for filepath in $files; do
