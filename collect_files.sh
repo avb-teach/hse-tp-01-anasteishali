@@ -1,36 +1,65 @@
 #!/bin/bash
 
-input_dir="$1"
-output_dir="$2"
-max_depth="$3"
 
-
-if [ -z "$input_dir" ] || [ -z "$output_dir" ]; then
-  echo "Usage: $0 <input_dir> <output_dir> [max_depth]"
-  exit 1
+if [ "$#" -lt 2 ]; then
+    echo "Usage: $0 [--max_depth N] <input_dir> <output_dir>"
+    exit 1
 fi
 
 
-mkdir -p "$output_dir"
+MAX_DEPTH=""
+INPUT_DIR=""
+OUTPUT_DIR=""
 
 
-if [ -z "$max_depth" ]; then
-  files=$(find "$input_dir" -type f)
+if [[ "$1" == "--max_depth" ]]; then
+    MAX_DEPTH="$2"
+    INPUT_DIR="$3"
+    OUTPUT_DIR="$4"
 else
-  files=$(find "$input_dir" -type f -maxdepth "$max_depth")
+    INPUT_DIR="$1"
+    OUTPUT_DIR="$2"
 fi
 
 
+if [ ! -d "$INPUT_DIR" ]; then
+    echo "Input directory does not exist"
+    exit 1
+fi
 
-for filepath in $files; do
-  filename=$(basename "$filepath")
-  target="$output_dir/$filename"
+mkdir -p "$OUTPUT_DIR"
 
-  counter=1
-  while [ -e "$target" ]; do
-    target="$output_dir/${filename%.*}$counter.${filename##*.}"
-    counter=$((counter + 1))
-  done
 
-  cp "$filepath" "$target"
-done
+copy_files() {
+    local input_dir="$1"
+    local output_dir="$2"
+    local max_depth="$3"
+
+    if [ -n "$max_depth" ]; then
+        find "$input_dir" -type f -mindepth 1 -maxdepth "$max_depth"
+    else
+        find "$input_dir" -type f
+    fi
+}
+
+
+declare -A file_counters
+
+while IFS= read -r filepath; do
+    filename=$(basename "$filepath")
+    
+  
+    if [[ -e "$OUTPUT_DIR/$filename" ]]; then
+        base="${filename%.*}"
+        ext="${filename##*.}"
+        ((file_counters["$filename"]++))
+        new_filename="${base}_${file_counters["$filename"]}.$ext"
+    else
+        file_counters["$filename"]=0
+        new_filename="$filename"
+    fi
+
+    cp "$filepath" "$OUTPUT_DIR/$new_filename"
+
+done < <(copy_files "$INPUT_DIR" "$MAX_DEPTH")
+
