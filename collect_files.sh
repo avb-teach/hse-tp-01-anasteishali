@@ -24,8 +24,13 @@ copy_files() {
     local output_dir="$2"
     local max_depth="$3"
 
+    local input_dir_abs=$(realpath "$input_dir")
+
     find "$input_dir" -type f | while read -r filepath; do
-        relative_path="${filepath#$input_dir/}" 
+        local filepath_abs=$(realpath "$filepath")
+
+       
+        local relative_path="${filepath_abs#$input_dir_abs/}"
 
       
         if [[ "$relative_path" == *"/"* ]]; then
@@ -39,8 +44,8 @@ copy_files() {
             continue
         fi
 
-        filename=$(basename "$filepath")
-        target="$output_dir/$filename"
+        local filename=$(basename "$filepath")
+        local target="$output_dir/$filename"
 
         if [[ -e "$target" ]]; then
             counter=${seen["$filename"]}
